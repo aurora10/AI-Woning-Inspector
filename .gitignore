@@ -1,0 +1,19 @@
+# Environment variables
+.env
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Input & Output data
+inspection_app/input_photos/
+inspection_app/output/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS files
+.DS_Store
