@@ -133,6 +133,7 @@ def process_images():
     prompt_text = load_prompt()
     results = []
     seen_hashes = set()
+    last_known_room = "overige"
     
     for idx, img_path in enumerate(tqdm(images, desc="Processing images")):
         print(f"\nProcessing {img_path.name}...")
@@ -160,8 +161,15 @@ def process_images():
             print(f"Failed to analyze {img_path.name}. Skipping.")
             continue
             
-        room = sanitize_filename(analysis.get("room", "overige"))
+        raw_room = analysis.get("room", "overige")
+        room = sanitize_filename(raw_room)
         title = sanitize_filename(analysis.get("title", "onbekend"))
+        
+        # Smart fallback: if room is unclear/unknown, inherit from previous photo
+        if room in ["onbekend", "overige", "onduidelijk", "", "unknown"] or raw_room.lower() in ["onbekend", "overige", "onduidelijk", "", "unknown"]:
+            room = last_known_room
+        else:
+            last_known_room = room
         
         # Determine new filename
         base_name = f"{room}_{title}"
