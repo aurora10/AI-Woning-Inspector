@@ -48,7 +48,7 @@ def get_images():
     images = []
     if not INPUT_DIR.exists():
         return images
-    for path in INPUT_DIR.iterdir():
+    for path in INPUT_DIR.rglob('*'):
         if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
             images.append(path)
     return sorted(images)
@@ -133,7 +133,6 @@ def process_images():
     prompt_text = load_prompt()
     results = []
     seen_hashes = set()
-    last_known_room = "overige"
     
     for idx, img_path in enumerate(tqdm(images, desc="Processing images")):
         print(f"\nProcessing {img_path.name}...")
@@ -155,21 +154,22 @@ def process_images():
             
         base64_img = image_to_base64(processed_img, img_format)
         
-        # Analyze
-        analysis = analyze_image(base64_img, prompt_text)
+        # Determine room from folder structure
+        relative_path = img_path.relative_to(INPUT_DIR)
+        if len(relative_path.parts) > 1:
+            folder_room = relative_path.parts[-2]
+        else:
+            folder_room = "Overige"
+            
+        # Analyze with folder context
+        current_prompt = prompt_text + f"\n\nContext: Deze foto is genomen in de volgende ruimte: {folder_room}"
+        analysis = analyze_image(base64_img, current_prompt)
         if not analysis:
             print(f"Failed to analyze {img_path.name}. Skipping.")
             continue
             
-        raw_room = analysis.get("room", "overige")
-        room = sanitize_filename(raw_room)
+        room = sanitize_filename(folder_room)
         title = sanitize_filename(analysis.get("title", "onbekend"))
-        
-        # Smart fallback: if room is unclear/unknown, inherit from previous photo
-        if room in ["onbekend", "overige", "onduidelijk", "", "unknown"] or raw_room.lower() in ["onbekend", "overige", "onduidelijk", "", "unknown"]:
-            room = last_known_room
-        else:
-            last_known_room = room
         
         # Determine new filename
         base_name = f"{room}_{title}"
@@ -190,7 +190,7 @@ def process_images():
         record = {
             "original_filename": img_path.name,
             "new_filename": new_filename,
-            "room": analysis.get("room", "Overige"),
+            "room": folder_room,
             "description": analysis.get("description", ""),
             "category": analysis.get("category", "onduidelijk"),
             "severity": analysis.get("severity", "onbekend"),
